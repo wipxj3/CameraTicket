@@ -1,27 +1,30 @@
 __author__ = 'DEXTER'
-import socket
-address = "127.0.0.1"
-port = 55555
-clientSocket = socket.socket()
-print "< socket created >"
+import socket, time
+address = "localhost"
+port = 5555
+clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 clientSocket.connect((address, port))
+print "< SERVER CONNECTED >"
 while True:
-    message = 'GetQR'
-    clientSocket.send(message)
-    print ">>> Sent to server"
+    message = 'generate '
+    criteria = ['cinema', 'day', 'time_stamp', 'movie', 'locul']
+    lst = [int(raw_input('Input '+str(criteria[i])+': ')) for i in range(0,5)]
+    request = str(lst[0])+','+ str(lst[1]) +','+ str(lst[2]) +','+ str(lst[3]) +','+ str(lst[4])
+    print request
+    clientSocket.send(message + request)
 
-    if message == "GetQR":
-        f = open("CinemaTicket.png", "wb")
-        clientSocket.settimeout(1)
+    if message[:9] == 'generate ':
+        f = open('./phone/CinemaTicket.png', 'wb')
         while True:
-            clientRecieved = clientSocket.recv(1024)
-            f.write(clientRecieved)
+            buf = clientSocket.recv(4096)
+            f.write(buf)
             f.close()
             break
-        clientSocket.settimeout(None)
         print "> I recieved from server a file! "
+
+        break
     else:
-        clientRecieved = clientSocket.recv(1024)
+        clientRecieved = clientSocket.recv(4096)
         print "> I recieved from server: \n", clientRecieved
         if (clientRecieved=="bye-bye") or (clientRecieved=="down"):
             clientSocket.shutdown(2)
