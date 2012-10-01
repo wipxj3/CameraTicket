@@ -7,7 +7,6 @@ port = 5555
 clientSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 clientSocket.connect((address, port))
 print '< SERVER CONNECTED >'
-
 class CaptureImage():
     def __init__(self):
         frame = cv.CaptureFromCAM(0)
@@ -16,7 +15,9 @@ class CaptureImage():
             cv.Rectangle(img, (140,60),(500,420), cv.RGB(0, 255, 255), 3, 8, 0)
             cv.ShowImage('QR scanner', img)
             if cv.WaitKey(10) == 27:
-                break
+                clientSocket.shutdown(2)
+                clientSocket.close()
+                sys.exit(1)
             elif cv.WaitKey(10) == ord(' '):
                 imagePath = 'D:/Dropbox/Anul III/SEM 2/APPOO/LABS/curs/qrexample/capture/'
                 self.imageIndex = imagePath + self.getTime() + '_capture'
@@ -25,12 +26,10 @@ class CaptureImage():
                 time.sleep(2)
                 break
                 #continue
-
     def getTime(self):
         t = time.localtime()
         timestamp = str(t.tm_hour)+'_'+str(t.tm_min)+'_'+str(t.tm_sec)
         return timestamp
-
 class QRdecode():
     def __init__(self, imageIndex):
         pil = Image.open(imageIndex +'.png').convert('L')
@@ -43,10 +42,8 @@ class QRdecode():
         # do something useful with results
             self.info = symbol.data
         self.data = str(self.info)
-
     def getData(self):
         return self.data
-
 if __name__ == "__main__":
     while True:
         try:
@@ -54,19 +51,20 @@ if __name__ == "__main__":
             #print capture.imageIndex
             data = QRdecode(capture.imageIndex)
             #print data.getData()
-            message = 'VALIDATE '
             qrData = data.getData()
+            message = 'VALIDATE '
+            #print qrData
             print "> Sent to server",message,'<','*'*50+qrData[48:],'>'
             clientSocket.send(message + qrData)
-
             if message == 'VALIDATE ':
                 clientSocket.settimeout(1)
                 while True:
                     clientRecieved = clientSocket.recv(1024)
                     if clientRecieved == 'VALID':
                         print '>>> VALID QRCODE'
-                        raw_input('Press any key...')
                         sys.exit(0)
+                    elif clientRecieved == 'INVALID':
+                        print '>>> INVALID QRCODE'
                     break
                 clientSocket.settimeout(None)
             else:
@@ -78,8 +76,3 @@ if __name__ == "__main__":
                     break
         except Exception:
             print 'No data found!'
-
-        if cv.WaitKey(10) == 27:
-            clientSocket.shutdown(2)
-            clientSocket.close()
-            break

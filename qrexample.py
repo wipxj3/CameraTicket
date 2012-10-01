@@ -1,6 +1,6 @@
 __author__ = 'DEXTER'
 import hashlib, base64
-import os, sqlite3, time, socket, thread, sys
+import os, sqlite3, time, socket, thread
 import qrcode, places
 serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serverSocket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -13,7 +13,6 @@ class QRencode():
         t = time.localtime()
         timestamp = str(t.tm_hour)+'_'+str(t.tm_min)+'_'+str(t.tm_sec)
         return timestamp
-
     def getData(self, iCinema, iDay, iTime, iMovie, iLoc):
         lst = [iCinema, iDay, iTime, iMovie, iLoc]
         self.salt = str(os.urandom(128))
@@ -21,10 +20,9 @@ class QRencode():
                     + places.day[int(lst[1])] +'_'\
                     + places.time_stamp[int(lst[2])] +'_'\
                     + places.movie[int(lst[3])] +'_'\
-        + places.locul[int(lst[4])]
+                    + places.locul[int(lst[4])]
         self.data = base64.b64encode(hashlib.sha512(self.salt + self.info).hexdigest())
         return [self.info, self.data[30:84]]
-
     def generate(self, data):
         qr = qrcode.QRCode(
             version=6,
@@ -40,7 +38,6 @@ class QRencode():
         imagePath = 'D:/Dropbox/Anul III/SEM 2/APPOO/LABS/curs/qrexample/qrs/'
         im.save(imagePath + imageIndex + '.png')
         return imageIndex
-
     def saveToDB(self, qrImage, info, qrHash):
         conn = sqlite3.connect('test.db')
         c = conn.cursor()
@@ -51,20 +48,18 @@ class QRencode():
         # We can also close the cursor if we are done with it
         c.close()
         return 'added to DB!'
-
     def verifyHash(self, recvHash):
         con = sqlite3.connect('test.db')
         with con:
             cur = con.cursor()
-            cur.execute("SELECT COUNT(*) FROM QRs WHERE qrHash=?", (recvHash,))
-            rows = cur.fetchall()
-            if len(rows) == 1:
+            result = cur.execute("SELECT COUNT(*) FROM QRs WHERE qrHash=?", (recvHash,))
+            rows = result.next()[0]
+            #print 'FOUND',rows
+            if rows == 1:
                 response = 'VALID'
             else:
-                print rows
                 response = 'INVALID'
             return response
-
 def handler(clientSocket, remoteAddress):
     while True:
         qr = QRencode()
@@ -73,16 +68,15 @@ def handler(clientSocket, remoteAddress):
             print '>>> Command from client:', serverRecieved[:8],remoteAddress
         except Exception:
             continue
-
         if serverRecieved[:9] == 'VALIDATE ':
-            rvHash = serverRecieved[10:64]
+            rvHash = serverRecieved[9:]
+            #print rvHash
             check = qr.verifyHash(rvHash)
             print '   <','*'*50+rvHash[47:],'>', check
             clientSocket.send(check)
-
         elif serverRecieved[:9] == 'generate ':
             request = serverRecieved[9:18].split(',')
-            info, qrHash = qr.getData(int(request[0]),int(request[1]),int(request[2]),int(request[3]),int(request[4]) )
+            info, qrHash = qr.getData(int(request[0]),int(request[1]),int(request[2]),int(request[3]),int(request[4]))
             qrImage = qr.generate(qrHash)
             qr.saveToDB(str(qrImage), str(info), str(qrHash))
             #print info, qrHash, qrImage
@@ -92,15 +86,12 @@ def handler(clientSocket, remoteAddress):
             qrFile = clientSocket.send(qrToSend)
             print '>>> passed:',qrImage,qrFile,'bytes'
             f.close()
-
         elif serverRecieved == ' ':
             print 'poke!'
-
         elif serverRecieved == "close" or serverRecieved == "Close":
             clientSocket.send("bye-bye")
             clientSocket.close()
             break
-
         elif serverRecieved == "Hastalavista" or serverRecieved == "hastalavista":
             global kill
             kill = 1
@@ -109,7 +100,6 @@ def handler(clientSocket, remoteAddress):
             break
         else:
             clientSocket.send("> Can you elaborate on that?")
-
 if __name__ == "__main__":
     kill = 0
     val = 1
